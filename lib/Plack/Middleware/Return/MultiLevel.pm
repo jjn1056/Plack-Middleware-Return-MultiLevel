@@ -9,21 +9,21 @@ use Plack::Util::Accessor 'level_name';
 use Return::MultiLevel;
 
 sub _PSGI_KEY_BASE { 'Plack.Middleware.Return.MultiLevel.$VERSION' }
-
-sub prepare_app {
-  my ($self) = @_;
-  unless($self->level_name) {
-    $self->level_name(our $count++);
-  }
-}
  
-sub return {
-  my ($self, $env, @returning) = @_;
-  $env->{$self->env_key}->(@returning);
+sub returns {
+  my ($self_or_class, $env, $level_name, @returning) = ();
+  if(ref($_[0])) {
+    ($self_or_class, $env, @returning) = @_;
+  } else {
+    ($self_or_class, $level_name, $env, @returning) = @_;
+  }
+
+  $env->{$self_or_class->env_key($level_name)}->(@returning);
 }
 
 sub env_key {
-  return &_PSGI_KEY_BASE . '.' . (shift->level_name);
+  my ($self_or_class, $level_name) = @_;
+  return join '.', (&_PSGI_KEY_BASE, ($level_name||shift->level_name||''));
 }
 
 sub call {
