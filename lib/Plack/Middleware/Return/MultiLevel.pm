@@ -8,28 +8,35 @@ use base 'Plack::Middleware';
 use Plack::Util::Accessor 'level_name';
 use Return::MultiLevel;
 
-sub _PSGI_KEY_BASE { 'Plack.Middleware.Return.MultiLevel.$VERSION' }
- 
-sub returns {
-  my ($self_or_class, $env, $level_name, @returning) = ();
-  if(ref($_[0])) {
-    ($self_or_class, $env, @returning) = @_;
-  } else {
-    ($self_or_class, $level_name, $env, @returning) = @_;
-  }
+sub _PSGI_KEY_BASE { return 'Plack.Middleware.Return.MultiLevel.$VERSION' }
+sub _DEFAULT_LEVEL { return 'default' }
 
-  $env->{$self_or_class->env_key($level_name)}->(@returning);
+sub prepare_app {
+    my $self = shift;
+    $self->level_name(&_DEFAULT_LEVEL)
+      unless(defined $self->level_name);
+}
+
+sub returns {
+  my ($self, $env, @returning) = @_;
+  return $self->get_return_cb($env)->(@returning);
 }
 
 sub env_key {
-  my ($self_or_class, $level_name) = @_;
-  return join '.', (&_PSGI_KEY_BASE, ($level_name||shift->level_name||''));
+  my $self = shift;
+  my $level_name = $self->level_name || shift || &_DEFAULT_LEVEL;
+  return &_PSGI_KEY_BASE . ".$level_name";
+}
+
+sub get_return_cb {
+  my ($self, $env) = @_;
+  return $env->{$self->env_key};
 }
 
 sub call {
   my ($self, $env) = @_;
   die "You may not use an existing 'level_name'" if
-    $env->{$self->env_key};
+    $self->get_return_cb($env);
 
   return Return::MultiLevel::with_return {
     my ($return) = @_;

@@ -34,15 +34,12 @@ my $app = Plack::Middleware::Return::MultiLevel->wrap(sub {
     my $mw = Plack::Middleware::Return::MultiLevel->new(level_name=>'theisland');
     my $app = $mw->wrap(sub {
       my $env = shift;
-      return $mv->returns($env
+      $mw->returns($env, [200, ['Content-Type', 'text/plain'], ['See This']]);
+
+      return [200, ['Content-Type', 'text/plain'], ['Never see this']];
     });
 
-    return Plack::Middleware::Return::MultiLevel->wrap(sub{
-      ok $req->env->{Plack::Middleware::Return::MultiLevel->env_key('area52')}
-       ->([200, ['Content-Type', 'text/plain'], ['area52']]);
-    }, level_name=>'area52')->($req->env);
-
-    return [200, ['Content-Type', 'text/plain'], ['Never see this']];
+    $app->($req->env);
   }
 
 });
@@ -64,6 +61,11 @@ test_psgi $app, sub {
     {
       my $res = $cb->(GET "/intercepted");
       is $res->content, "area52";
+    }
+
+    {
+      my $res = $cb->(GET "/as_instance");
+      is $res->content, "See This";
     }
 
 };
