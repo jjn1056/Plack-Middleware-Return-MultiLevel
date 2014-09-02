@@ -11,15 +11,15 @@ use Exporter 'import';
 
 our @EXPORT_OK = qw(return_to_level return_to_default_level PSGI_KEY);
 
-sub PSGI_KEY { return "Plack.Middleware.Return.MultiLevel.$VERSION" }
+sub PSGI_KEY () { 'Plack.Middleware.Return.MultiLevel.return_to' }
 
-sub _DEFAULT_LEVEL_NAME { return 'default' }
+sub DEFAULT_LEVEL_NAME { return 'default' }
 
 sub _raw_level_name {
   my ($env, $level_name, $return_to) = @_;
-  $env->{&PSGI_KEY}->{$level_name} = $return_to
+  $env->{+PSGI_KEY}->{$level_name} = $return_to
     if $return_to;
-  return $env->{&PSGI_KEY}->{$level_name};
+  return $env->{+PSGI_KEY}->{$level_name};
 }
 
 sub _find_level_name_in {
@@ -48,11 +48,11 @@ sub return_to_level {
 
 sub return_to_default_level {
   my ($env, @returning) = @_;
-  return _return($env, &_DEFAULT_LEVEL_NAME, @returning);
+  return _return($env, DEFAULT_LEVEL_NAME, @returning);
 }
 
 sub prepare_app {
-  $_[0]->level_name(&_DEFAULT_LEVEL_NAME)
+  $_[0]->level_name(DEFAULT_LEVEL_NAME)
     unless(defined $_[0]->level_name);
 }
 
