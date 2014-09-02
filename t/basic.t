@@ -1,85 +1,52 @@
 use Test::Most;
 use Plack::Test;
-use Plack::Request;
-use Plack::Middleware::Return::MultiLevel;
+use Plack::Middleware::Return::MultiLevel 'return_to_level', 'return_to_default_level';
 use HTTP::Request::Common;
+use Plack::Builder;
 
-my $app = Plack::Middleware::Return::MultiLevel->wrap(sub {
-  my $req = Plack::Request->new(shift);
+my $app = builder {
+  enable "Return::MultiLevel";
 
-  if($req->path eq '/') {
-    ok $req->env->{Plack::Middleware::Return::MultiLevel->env_key};
-    return [200, ['Content-Type', 'text/plain'], ['Hello']];
-  }
+  mount "/default" => sub {
+    my $env = shift;
+    return_to_default_level($env, [200, ['Content-Type', 'text/plain'], ['default']]);
+  };
 
-  if($req->path eq '/seethis') {
-    ok $req->env->{Plack::Middleware::Return::MultiLevel->env_key}
-     ->([200, ['Content-Type', 'text/plain'], ['See this']]);
+  mount '/layers' => builder {
+    enable "Return::MultiLevel", level_name=>'one';
+    enable "Return::MultiLevel", level_name=>'two';
 
-    return [200, ['Content-Type', 'text/plain'], ['Never see this']];
-  }
-
-  if($req->path eq '/intercepted') {
-
-    return Plack::Middleware::Return::MultiLevel->wrap(sub{
-      ok $req->env->{Plack::Middleware::Return::MultiLevel->env_key('area52')}
-       ->([200, ['Content-Type', 'text/plain'], ['area52']]);
-    }, level_name=>'area52')->($req->env);
-
-    return [200, ['Content-Type', 'text/plain'], ['Never see this']];
-  }
-
-  if($req->path eq '/as_instance') {
-
-    my $mw = Plack::Middleware::Return::MultiLevel->new(level_name=>'theisland');
-    my $app = $mw->wrap(sub {
+    mount '/one' => sub {
       my $env = shift;
-      $mw->returns($env, [200, ['Content-Type', 'text/plain'], ['See This']]);
+      return_to_level($env, 'one', [200, ['Content-Type', 'text/plain'], ['one']]);
+    };
 
-      return [200, ['Content-Type', 'text/plain'], ['Never see this']];
-    });
+    mount '/two' => sub {
+      my $env = shift;
+      return_to_level($env, 'two', [200, ['Content-Type', 'text/plain'], ['two']]);
+    };
 
-    $app->($req->env);
-  }
+  };
 
-});
-
+};
 
 test_psgi $app, sub {
     my $cb  = shift;
 
     {
-      my $res = $cb->(GET "/");
-      is $res->content, "Hello";
+      my $res = $cb->(GET "/default");
+      is $res->content, "default";
     }
 
     {
-      my $res = $cb->(GET "/seethis");
-      is $res->content, "See this";
+      my $res = $cb->(GET "/layers/one");
+      is $res->content, "one";
     }
 
     {
-      my $res = $cb->(GET "/intercepted");
-      is $res->content, "area52";
+      my $res = $cb->(GET "/layers/two");
+      is $res->content, "two";
     }
-
-    {
-      my $res = $cb->(GET "/as_instance");
-      is $res->content, "See This";
-    }
-
 };
 
 done_testing;
-
-
-__END__
-
-use Plack::Middleware::Return::MultiLevel 'return';
-
-$req->returns($level, $res);
-$req->returns($res); # do default level
-
-returns($env, $level, $res);
-returns($env, $res);
-
