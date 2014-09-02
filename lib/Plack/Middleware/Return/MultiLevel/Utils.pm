@@ -10,13 +10,13 @@ our @EXPORT_OK = qw(return_to_level return_to_default_level);
 
 sub return_to_level {
   my ($env, $level_name, @returning) = @_;
-  return Plack::Middleware::Return::MultiLevel::_return(
+  return Plack::Middleware::Return::MultiLevel::return_level(
     $env, $level_name, @returning);
 }
 
 sub return_to_default_level {
   my ($env, @returning) = @_;
-  return Plack::Middleware::Return::MultiLevel::_return(
+  return Plack::Middleware::Return::MultiLevel::return_level(
     $env, Plack::Middleware::Return::MultiLevel::DEFAULT_LEVEL_NAME, @returning);
 }
 

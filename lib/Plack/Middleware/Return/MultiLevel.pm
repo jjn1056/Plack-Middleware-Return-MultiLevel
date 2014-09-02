@@ -12,32 +12,11 @@ sub PSGI_KEY () { 'Plack.Middleware.Return.MultiLevel.return_to' }
 
 sub DEFAULT_LEVEL_NAME() { 'default' }
 
-sub __raw_level_name {
-  my ($env, $level_name, $return_to) = @_;
-  $env->{+PSGI_KEY}->{$level_name} = $return_to
-    if $return_to;
-  return $env->{+PSGI_KEY}->{$level_name};
-}
-
-sub _find_level_name_in {
-  my ($env, $level_name) = @_;
-  return __raw_level_name($env, $level_name) ||
-    die "'$level_name' not found, cannot return to it!";
-}
-
-sub _set_level_name_in {
-  my %env = %{(shift)};
-  my ($level_name, $return_to) = @_;
-  die "'$level_name' already defined"
-    if __raw_level_name(\%env, $level_name);
-  __raw_level_name(\%env, $level_name, $return_to);
-
-  return \%env;
-}
-
-sub _return {
+sub return_level {
   my ($env, $level_name, @returning) = @_;
-  my $returns_to = _find_level_name_in($env, $level_name);
+  my $returns_to = $env->{+PSGI_KEY}->{$level_name} ||
+    die "'$level_name' not found, cannot return to it!";
+
   $returns_to->(@returning);
 }
 
@@ -50,14 +29,18 @@ sub call {
   my ($self, $env) = @_;
   return Return::MultiLevel::with_return {
     my ($return_to) = @_;
-    my $new_env = _set_level_name_in($env, $self->level_name, $return_to);
+    my $new_env = +{
+      %$env,
+      +PSGI_KEY, +{ %{$env->{+PSGI_KEY}||{}}, $self->level_name => $return_to },
+    };
+
     $self->app->($new_env);
   };
 }
 
 sub return {
   my ($self, $env, @returning) = @_;
-  return _return($env, $self->level_name, @returning);
+  return return_level($env, $self->level_name, @returning);
 }
 
 =head1 TITLE
@@ -93,6 +76,8 @@ Sets instance defaults
 Used by plack to call the middleware
 
 =head2 return
+
+=head2 return_level
 
     TBD
 
