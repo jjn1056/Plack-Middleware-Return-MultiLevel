@@ -7,15 +7,12 @@ our $VERSION = "0.001";
 use base 'Plack::Middleware';
 use Plack::Util::Accessor 'level_name';
 use Return::MultiLevel;
-use Exporter 'import';
-
-our @EXPORT_OK = qw(return_to_level return_to_default_level PSGI_KEY);
 
 sub PSGI_KEY () { 'Plack.Middleware.Return.MultiLevel.return_to' }
 
-sub DEFAULT_LEVEL_NAME { return 'default' }
+sub DEFAULT_LEVEL_NAME() { 'default' }
 
-sub _raw_level_name {
+sub __raw_level_name {
   my ($env, $level_name, $return_to) = @_;
   $env->{+PSGI_KEY}->{$level_name} = $return_to
     if $return_to;
@@ -24,31 +21,24 @@ sub _raw_level_name {
 
 sub _find_level_name_in {
   my ($env, $level_name) = @_;
-  return _raw_level_name($env, $level_name) ||
+  return __raw_level_name($env, $level_name) ||
     die "'$level_name' not found, cannot return to it!";
 }
 
 sub _set_level_name_in {
-  my ($env, $level_name, $return_to) = @_;
+  my %env = %{(shift)};
+  my ($level_name, $return_to) = @_;
   die "'$level_name' already defined"
-    if _raw_level_name($env, $level_name);
-  _raw_level_name($env, $level_name, $return_to);
+    if __raw_level_name(\%env, $level_name);
+  __raw_level_name(\%env, $level_name, $return_to);
+
+  return \%env;
 }
 
 sub _return {
   my ($env, $level_name, @returning) = @_;
   my $returns_to = _find_level_name_in($env, $level_name);
   $returns_to->(@returning);
-}
-
-sub return_to_level {
-  my ($env, $level_name, @returning) = @_;
-  return _return($env, $level_name, @returning);
-}
-
-sub return_to_default_level {
-  my ($env, @returning) = @_;
-  return _return($env, DEFAULT_LEVEL_NAME, @returning);
 }
 
 sub prepare_app {
@@ -60,8 +50,8 @@ sub call {
   my ($self, $env) = @_;
   return Return::MultiLevel::with_return {
     my ($return_to) = @_;
-    _set_level_name_in($env, $self->level_name, $return_to);
-    $self->app->($env);
+    my $new_env = _set_level_name_in($env, $self->level_name, $return_to);
+    $self->app->($new_env);
   };
 }
 
@@ -106,18 +96,6 @@ Used by plack to call the middleware
 
     TBD
 
-=head1 EXPORTS
-
-This class defines the following exportable subroutines
-
-=head2 return_to_default_level
-
-    TBD
-
-=head2 return_to_level
-
-    TBD
- 
 =head1 AUTHOR
  
 John Napiorkowski L<email:jjnapiork@cpan.org>

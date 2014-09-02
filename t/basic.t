@@ -1,6 +1,7 @@
 use Test::Most;
 use Plack::Test;
-use Plack::Middleware::Return::MultiLevel 'return_to_level', 'return_to_default_level';
+use Plack::Middleware::Return::MultiLevel;
+use Plack::Middleware::Return::MultiLevel::Utils  'return_to_level', 'return_to_default_level';
 use HTTP::Request::Common;
 use Plack::Builder;
 
