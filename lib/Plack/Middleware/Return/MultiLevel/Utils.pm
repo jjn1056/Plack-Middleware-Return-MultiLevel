@@ -66,7 +66,7 @@ method. For example:
     return_to_level($env, 'set_level_name',
       [200, ['Content-Type', 'text/plain'], ['named level']]);
 
-Just like L</return_to_level> except that the second argument is the name of a
+Just like L</return_to_default_level> except that the second argument is the name of a
 return level that you set.  Also can be called as a method against an object that
 does C<env>.
  

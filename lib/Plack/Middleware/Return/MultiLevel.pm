@@ -3,7 +3,7 @@ use warnings;
 
 package Plack::Middleware::Return::MultiLevel;
 
-our $VERSION = "0.001";
+our $VERSION = "0.002";
 use base 'Plack::Middleware';
 use Plack::Util::Accessor 'level_name';
 use Return::MultiLevel;
