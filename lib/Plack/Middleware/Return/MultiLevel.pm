@@ -12,7 +12,7 @@ sub PSGI_KEY () { 'Plack.Middleware.Return.MultiLevel.return_to' }
 
 sub DEFAULT_LEVEL_NAME() { 'default' }
 
-sub return_level {
+sub _return_level {
   my ($env, $level_name, @returning) = @_;
   my $returns_to = $env->{+PSGI_KEY}->{$level_name} ||
     die "'$level_name' not found, cannot return to it!";
@@ -40,7 +40,7 @@ sub call {
 
 sub return {
   my ($self, $env, @returning) = @_;
-  return return_level($env, $self->level_name, @returning);
+  return _return_level($env, $self->level_name, @returning);
 }
 
 =head1 TITLE
@@ -49,11 +49,50 @@ Plack::Middleware::Return::MultiLevel - Escape a PSGI app from anywhere in the s
  
 =head1 SYNOPSIS
 
-    TBD
+    my $app = builder {
+      enable "Return::MultiLevel";
+
+      mount "/default" => sub {
+        my $env = shift;
+        return_to_default_level($env, [200, ['Content-Type', 'text/plain'], ['default']]);
+      };
+
+      mount '/layers' => builder {
+        enable "Return::MultiLevel", level_name=>'one';
+        enable "Return::MultiLevel", level_name=>'two';
+
+        mount '/one' => sub {
+          my $env = shift;
+          return_to_level($env, 'one', [200, ['Content-Type', 'text/plain'], ['one']]);
+        };
+
+        mount '/two' => sub {
+          my $env = shift;
+          return_to_level($env, 'two', [200, ['Content-Type', 'text/plain'], ['two']]);
+        };
+
+      };
+
+    };
 
 =head1 DESCRIPTION
 
-    TBD
+Sometimes when in a PSGI application you want an easy way to escape out of the
+current callstack.  For example you might wish to immediate end processing and
+return a 'NotFound' or 'ServerError' type response.  In those cases you might
+use the core middleware L<Plack::Middleware::HTTPExceptions>, which allows you
+to throw an exception object that matches a duck type (has methods C<code> and
+C<as_string> or C<as_psgi>).  That middleware wraps everything in an eval and
+looks for exception objects of that type.
+
+L<Plack::Middleware::Return::MultiLevel> is an alternative approach to solving
+this problem.  Instead of throwing an exception, it uses L<Return::MultiLevel>
+to set a 'callback' point that you can jump to at any time.  If you don't like
+using exceptions for control flow, or you have code that does a lot of exception
+catching, you might prefer this approach.
+
+Unlike L<Plack::Middleware::HTTPExceptions> you don't need to return an object
+matching a ducktype, you can just return any standard, acceptable PSGI response.
 
 =head1 CONSTANTS
 
@@ -62,6 +101,11 @@ This class defines the following constants
 =head2 PSGI_KEY
 
 PSGI environment key under which your return callback are stored.
+
+=head2 DEFAULT_LEVEL_NAME
+
+The default level name used if you choose not to explicitly name your return
+level target.
  
 =head1 METHODS
  
@@ -76,8 +120,6 @@ Sets instance defaults
 Used by plack to call the middleware
 
 =head2 return
-
-=head2 return_level
 
     TBD
 
