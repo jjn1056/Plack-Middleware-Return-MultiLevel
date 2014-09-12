@@ -32,7 +32,7 @@ sub call {
     my $new_env = +{
       %$env,
       +PSGI_KEY, +{ %{$env->{+PSGI_KEY}||{}}, $self->level_name => $return_to },
-    };
+    }; # make a shallow copy
 
     $self->app->($new_env);
   };
@@ -48,6 +48,10 @@ sub return {
 Plack::Middleware::Return::MultiLevel - Escape a PSGI app from anywhere in the stack
  
 =head1 SYNOPSIS
+
+    use Plack::Builder;
+    use Plack::Middleware::Return::MultiLevel::Utils
+      qw/return_to_level return_to_default_level/;
 
     my $app = builder {
       enable "Return::MultiLevel";
@@ -78,12 +82,12 @@ Plack::Middleware::Return::MultiLevel - Escape a PSGI app from anywhere in the s
 =head1 DESCRIPTION
 
 Sometimes when in a PSGI application you want an easy way to escape out of the
-current callstack.  For example you might wish to immediate end processing and
+current callstack.  For example you might wish to immediately end processing and
 return a 'NotFound' or 'ServerError' type response.  In those cases you might
 use the core middleware L<Plack::Middleware::HTTPExceptions>, which allows you
 to throw an exception object that matches a duck type (has methods C<code> and
 C<as_string> or C<as_psgi>).  That middleware wraps everything in an eval and
-looks for exception objects of that type.
+looks for exception objects of that type, and converts them to a response.
 
 L<Plack::Middleware::Return::MultiLevel> is an alternative approach to solving
 this problem.  Instead of throwing an exception, it uses L<Return::MultiLevel>
@@ -121,7 +125,18 @@ Used by plack to call the middleware
 
 =head2 return
 
-    TBD
+    my $mw = Plack::Middleware::Return::MultiLevel->new;
+
+    #...
+
+    $mw->return([200, ['Content-Type', 'text/plain'], ['returned']]);
+
+Returns to the callpoint set by L<Return::MultiLevel>.  You should pass this
+args suitable for a PSGI response.
+
+Since the return callback is also stored in the C<$psgi_env>, you are more
+likely to use methods from L<Plack::Middleware::Return::MultiLevel::Utils>
+rather than storing the middleware object.
 
 =head1 AUTHOR
  
@@ -129,7 +144,8 @@ John Napiorkowski L<email:jjnapiork@cpan.org>
  
 =head1 SEE ALSO
 
-L<Return::MultiLevel>, L<Plack>, L<Plack::Middleware>
+L<Return::MultiLevel>, L<Plack>, L<Plack::Middleware>, 
+L<Plack::Middleware::Return::MultiLevel::Utils>
  
 =head1 COPYRIGHT & LICENSE
  
