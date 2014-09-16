@@ -29,12 +29,9 @@ sub call {
   my ($self, $env) = @_;
   return Return::MultiLevel::with_return {
     my ($return_to) = @_;
-    my $new_env = +{
-      %$env,
-      +PSGI_KEY, +{ %{$env->{+PSGI_KEY}||{}}, $self->level_name => $return_to },
-    }; # make a shallow copy
-
-    $self->app->($new_env);
+    local $env->{+PSGI_KEY} = {} if 'HASH' ne ref $env->{+PSGI_KEY};
+    local $env->{+PSGI_KEY}{$self->level_name} = $return_to;
+    $self->app->($env);
   };
 }
 
